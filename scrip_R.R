@@ -1,0 +1,5 @@
+library(tidyverse)
+j = c(1,2,3.2,9)
+k =length(j)
+x = mean(j)
+print(x)
