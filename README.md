@@ -1,4 +1,4 @@
-# Analyse-R
- Analyse des données avec le logiciel R.
- R est un logiciel d'analyse des données qui a une grande 
- communauté d'utilisateur.
+# Analyse-R_cedro
+ Analyse des donnÃ©es avec le logiciel R.
+ R est un logiciel d'analyse des donnÃ©es qui a une grande 
+ communautÃ© d'utilisateur.
