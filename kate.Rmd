@@ -10,7 +10,8 @@ output:
     galery: False
     use_bookdown: true
 ---
-
+##**Note**  si *use_bookdown est true** on peut utiliser le backage Bookdown pour la rédaction de notre document.
+Il permet entre autres, les références croisées et la numérotation des équations.
 # .Définition du répertoire de travail {#sect1}
 
 Le répertoire de travail c'est le répertoire ou le dossier que R utilise pour chercher les fichiers ou sauvegarder les fichiers générés.
