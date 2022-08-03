@@ -1,0 +1,192 @@
+---
+title: "CARTOGRAPHIE THEMATIQUE AVEC GGPLOT2"
+date: "`r Sys.Date()`"
+author: "MALANDA Cédric"
+output:
+  rmdformats::readthedown:
+    highlight: tango #kate
+    lightbox: true
+    thumbnails: False
+    galery: False
+    use_bookdown: true
+---
+
+# .Définition du répertoire de travail {#sect1}
+
+Le répertoire de travail c'est le répertoire ou le dossier que R utilise pour chercher les fichiers ou sauvegarder les fichiers générés.
+
+```{r}
+"E:/Logiciel R/CARTOGRAPHIE AVEC 
+R/TP CARTO"
+```
+
+# Chargement des packages utiles
+
+```{r}
+library(tidyverse)
+library(sf)
+library(ggspatial)
+library(readxl)
+library(bookdown)
+library(rmdformats)
+```
+
+# Chargement et préparation des données
+
+```{r}
+setwd("E:/Logiciel R/CARTOGRAPHIE AVEC R/TP CARTO")
+cg <- st_read("Departements_du_CongoV.shp", quiet=TRUE)
+centres <- read_excel("Centres d'état civil VF 29_06_2022.xlsx")
+cg1 <- st_read("Departements_du_CongoV.shp", quiet=TRUE) 
+d <- select(centres,"Département",Centres_principaux = "Centres principaux",
+            Centres_secondaires = "Centres secondaires")
+cg1 <- left_join(cg,d, by = c("Noms_Dép" = "Département"))
+```
+
+# Production des cartes avec GGPLOT2
+
+## Carte choroplète simple
+
+```{r}
+ggplot(cg1) +  geom_sf(aes(fill = Centres_principaux)) + 
+  ggtitle("Répartition des centres d'état civil sécondaires par département") +
+theme_void() 
+```
+
+## rte choroplète avec quelques éléments supplémentaires
+
+```{r}
+ p <- ggplot(data=cg1)+
+  geom_sf(fill="grey99")+ 
+  geom_sf(aes(fill = Centres_secondaires))+ 
+  ggtitle("Répartition des centres d'état civil sécondaires par département") +
+  annotation_scale(location = "br", line_width = .5) +
+  annotation_north_arrow(location = "tl", height = unit(0.7, "cm"),
+                         width = unit(0.7, "cm")) +
+  theme_void()
+ p
+```
+
+## Mise des labels avec geom_text
+
+```{r}
+nc3 <- cg1 
+nc3_points <- sf::st_point_on_surface(nc3)
+nc3_coords <- as.data.frame(sf::st_coordinates(nc3_points))
+nc3_coords$NAME <- nc3$Noms_Dép
+nc3_coords
+ggplot() +
+  geom_sf(data = nc3, aes(fill = Centres_secondaires)) +
+  geom_text(data = nc3_coords, aes(X, Y, label = NAME), colour = "white")
+```
+
+## Production de la carte en passant par une transformation de l'objet sf (simple feature) {#transforme}
+
+La transformation permet de projet les objets non-sf sur la carte. La projection que nous avons trouvée satisfaisante pour le Congo pour le Congo est celle pour laquelle EPSG = 2177. Les valeurs comprises entre 2164 et 2180 donnes également une bonne projection pour le Congo (**après test**).
+
+```{r}
+
+# la bonne projection pour le Congo est celle dont la valeur est comprise entre 2164 et 2180
+k <- sf::st_transform(
+  cg1,2154) # la transformation conforme pour le Congo est 2164 ou 2174
+
+k_2177 <- sf::st_transform(
+  cg1,2177)
+# carte avec k_2177
+ggplot(data = k_2177)+ 
+  geom_sf(aes(geometry=geometry, fill= Centres_principaux), size = .9)+
+  labs(title="Subdivision de la République du Congo", subtitle="Département du Congo",caption="Source: INS, 2022")+  
+  theme(plot.title=element_text(size=18, face="bold",color="blue",hjust= 0.1),
+        plot.subtitle = element_text(size=10, face="bold",color="black",hjust= 0.6), 
+        plot.caption=element_text(size= 12,face = "bold", color = "red"),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_line( size=0.5,linetype = "dotted"))
+```
+
+## Production des cartes à ronds proportionnels {#centro}
+
+Les cartes à ronds proportionnel nécessite le calcul des centroïdes si l'on veut produire la carte en passant par la transformation suivante.
+
+```{r}
+k_2177$centroid <- sf::st_centroid(k_2177$geometry)
+```
+
+```{r}
+ggplot(k_2177, size = 10) + 
+  geom_sf(colour = "black") +
+  geom_sf(aes(geometry = centroid, size = Centres_principaux,
+              #color= "gray35",
+              show.legend = "point")) +
+  ggtitle("Carte à symboles proportionnels"  )+
+  geom_sf_text(aes(label =Noms_Dép),size= 3 ,family="sans",color = "gray21")+
+  #theme_void()
+  theme(plot.title=element_text(size=18, face="bold",color="blue",hjust= 0.3),
+        plot.subtitle = element_text(size=10, face="bold",color="black",hjust= 0.6), 
+        plot.caption=element_text(size= 12,face = "bold", color = "red"),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_line( size=0.1,linetype = "dotted")) +
+  annotation_scale(location = "br", line_width = .5) +
+  annotation_north_arrow(location = "tl", height = unit(0.7, "cm"),
+                         width = unit(0.7, "cm"))
+```
+
+## Carte choroplèthe et à fonds proportionnels
+
+```{r}
+ggplot(k_2177, size = 10) + 
+  geom_sf(colour = "black") +
+  geom_sf(aes(geometry = centroid, size = Centres_principaux,
+              color= Centres_secondaires,
+              show.legend = "point")) +
+  ggtitle("Carte à symboles proportionnels et choroplèthe"  )+
+  geom_sf_text(aes(label =Noms_Dép),size= 3 ,family="sans",color = "gray21")+
+  #theme_void()
+  theme(plot.title=element_text(size=18, face="bold",color="blue",hjust= 0.3),
+        plot.subtitle = element_text(size=10, face="bold",color="black",hjust= 0.6), 
+        plot.caption=element_text(size= 12,face = "bold", color = "red"),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_line( size=0.1,linetype = "dotted")) +
+  annotation_scale(location = "br", line_width = .5) +
+  annotation_north_arrow(location = "tl", height = unit(0.7, "cm"),
+                         width = unit(0.7, "cm"))
+```
+
+# Une façon de produire les cartes avec GGPLOT2
+
+Au lieu de calculer les centroïdes, une autre façon de produire les cartes à ronds proportionnel est d'utiliser le fonction ***stat_sf_coordinates()*** . Cette fonction permet l'extraction des coordonnées d'un objet **'sf'** et les résume en une paire de coordonnées (x et y) par géométrie. C'est pratique lorsque vous dessinez un objet sf sous forme de geoms comme du texte et des étiquettes (donc geom_sf_text() et geom_sf_label() s'appuient sur cela. Cette fonction évite de passer par le calcul des centroïdes comme vu dans la section \@ref(centro) ainsi que dans la section \@ref(transforme)
+
+```{r}
+v <- left_join(cg,d, by = c("Noms_Dép" = "Département"))
+
+names(v)
+
+ggplot(data=v)+
+  geom_sf(fill="grey97")+
+  stat_sf_coordinates(aes(size = Centres_secondaires,
+      fill= Centres_principaux),
+      color = "black",
+      shape= 21,
+      show.legend = "point") +
+  scale_fill_gradient2(name = "Centres_principaux",
+                       low = "darkblue", mid = "white", high = "darkred")+
+  labs(title = "Carte choroplèthe à fonds proportionnel",
+       subtitle="Centres principaux et secondaires",
+       caption = "Auteur: MALANDA MANKOUSSOU JC.\n Source: INS, 2022")+
+  theme_void() +
+  theme(plot.title=element_text(size=12,
+                     face="bold",color="blue",hjust= 0.3),
+        plot.subtitle = element_text(size=10, face="bold",
+                        color="black",hjust= 0.6), 
+        plot.caption=element_text(size= 8,face = "bold.italic", color = "gray10", hjust= 0.4)) +
+  scale_size_area(name = "Centres_secondaires", max_size = 10) +
+  annotation_scale(location = "br", line_width = .5) +
+  annotation_north_arrow(location = "tl", height = unit(0.7, "cm"),width = unit(0.7, "cm")) +
+geom_sf_text(aes(label =Noms_Dép),size= 3.5 ,family="serif",color = "gray9", face = "bold") 
+ggsave(filename="Cartes ggplot avec stat_sf_coordinates.png",dpi="print")
+```
